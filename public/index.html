@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow, noarchive">
+  <meta name="theme-color" content="#fff7fc">
+  <meta name="description" content="A fictional, browser-only My Art Pets demo for Erin's feedback.">
+  <title>My Art Pets · Cutie Edition demo</title>
+  <link rel="icon" href="./assets/paw.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./styles.css">
+  <script type="module" src="./app.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to your pet</a>
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="brand" href="#main"><img src="./assets/paw.svg" width="42" height="42" alt=""><span>My Art Pets <span class="edition">CUTIE EDITION</span></span></a>
+      <div class="student-controls">
+        <label for="student">Fictional student</label>
+        <select id="student"><option>Alex</option><option>Jamie</option><option>Taylor</option></select>
+        <button id="teacherToggle" class="lilac" aria-expanded="false" aria-controls="teacherPanel">Teacher demo</button>
+      </div>
+    </div>
+  </header>
+  <main id="main" tabindex="-1">
+    <div class="demo-notice"><span class="demo-label">FEEDBACK DEMO</span><p>Fictional students only. <strong>Teacher controls are unrestricted.</strong> Progress saves only in this browser on this device; it does not sync to other phones or computers. No real accounts or private profiles.</p></div>
+    <div id="storageWarning" class="storage-warning" role="status" hidden></div>
+    <div class="welcome"><div><p class="eyebrow">A LITTLE CREATIVITY. A LITTLE COMPANY.</p><h1>Make art. Grow together.</h1><p>Your very own little buddy, cheering you on.</p></div><div id="welcomeArt" class="welcome-art" aria-hidden="true"></div></div>
+    <nav class="section-nav" aria-label="Explore the demo"><a href="#buddy">My buddy</a><a href="#shopSection">Star Shop</a><a href="#arcade">Playtime</a><a href="#feedbackSection">Leave feedback</a></nav>
+    <p id="message" class="message" role="status" aria-live="polite" aria-atomic="true"></p>
+
+    <section id="teacherPanel" class="panel teacher-panel" aria-labelledby="teacherHeading" hidden>
+      <div class="section-heading"><div><p class="eyebrow">UNRESTRICTED DEMO CONTROLS</p><h2 id="teacherHeading">Erin's teacher corner</h2></div><span class="pill" id="teacherStudent"></span></div>
+      <p>Try awarding stars and a game pass to the selected fictional student. Anyone can open these controls in this demo. Real students must never award themselves stars.</p>
+      <div id="awards" class="button-row"></div>
+      <div class="teacher-actions"><button id="grantPass" class="mint">Grant 1 game pass</button><button id="reset" class="quiet">Reset all demo progress</button></div>
+      <details><summary>Recent activity for this student</summary><ol id="history" class="history"></ol></details>
+    </section>
+
+    <div class="buddy-grid" id="buddy">
+      <section class="panel pet-panel" aria-labelledby="buddyHeading">
+        <div class="section-heading"><h2 id="buddyHeading">Meet your little buddy!</h2><span class="mini-label" id="studentLabel">Alex's pet</span></div>
+        <div class="pet-scene"><span class="scene-sparkle sparkle-one" aria-hidden="true">✦</span><span class="scene-sparkle sparkle-two" aria-hidden="true">✧</span><div class="pet" id="petBg"><div id="petArt" class="creature"></div><div id="petAccessory" class="accessory" aria-hidden="true"></div></div><span class="scene-flower" aria-hidden="true">✿</span></div>
+        <h3 id="petName" class="pet-name">Pebble</h3><p id="wearDescription" class="muted accessory-description">No accessory</p>
+        <div class="balance-row"><span class="pill yellow" id="balance">0 ★ available</span><span class="pill" id="lifetime">0 lifetime stars</span></div>
+        <form id="renameForm" class="rename-form"><label for="rename">Pet name</label><div><input id="rename" name="petName" maxlength="18" required autocomplete="off" value="Pebble"><button class="mint" type="submit">Rename</button></div></form>
+        <fieldset><legend>Choose a creature</legend><div id="pets" class="pet-choices"></div></fieldset>
+        <fieldset><legend>Choose a background</legend><div id="colors" class="colour-choices"></div></fieldset>
+      </section>
+
+      <section class="panel care-panel" aria-labelledby="careHeading">
+        <div class="section-heading"><h2 id="careHeading">A little love goes a long way</h2><span class="heart-doodle" aria-hidden="true">♡</span></div>
+        <p>Settle in, have a snack and enjoy a little playtime.</p>
+        <div class="stat-row"><label for="happyBar">Happiness</label><output id="happyText">75%</output><progress id="happyBar" max="100" value="75">75%</progress></div>
+        <div class="stat-row fullness"><label for="fullBar">Fullness</label><output id="fullText">70%</output><progress id="fullBar" max="100" value="70">70%</progress></div>
+        <div class="stat-row energy"><label for="energyBar">Energy</label><output id="energyText">80%</output><progress id="energyBar" max="100" value="80">80%</progress></div>
+        <div class="care-buttons"><button id="feed" class="mint"><span aria-hidden="true">♡</span> Feed <small>Always free</small></button><button id="play" class="yellow"><span aria-hidden="true">✦</span> Play <small>Always free</small></button><button id="rest" class="lilac"><span aria-hidden="true">☾</span> Rest <small>Always free</small></button></div>
+        <p class="kind-note">No rush, little artist. Your pet never dies, and its care stats never fall while you're away.</p>
+        <div class="wardrobe"><h3>My accessory collection</h3><p class="muted">Little treasures to keep forever.</p><div id="owned" class="button-row"></div></div>
+        <div id="careArt" class="care-art" aria-hidden="true"></div>
+      </section>
+    </div>
+
+    <section class="panel" id="shopSection" aria-labelledby="shopHeading">
+      <div class="section-heading"><div><p class="eyebrow">SOMETHING SPECIAL FOR YOUR BUDDY</p><h2 id="shopHeading">The Star Shop</h2></div><span class="handwritten" aria-hidden="true">small treats, big smiles ✧</span></div>
+      <p>Spend available stars on permanent accessories or a tasty treat. Your lifetime stars always stay with you.</p>
+      <div class="shop-grid" id="shop"></div>
+    </section>
+
+    <section class="panel arcade-panel" id="arcade" aria-labelledby="arcadeHeading">
+      <div class="arcade-intro"><div id="arcadeArt" class="arcade-art" aria-hidden="true"></div><div><p class="eyebrow">A WELL-EARNED LITTLE BREAK</p><h2 id="arcadeHeading">Playtime Arcade</h2><p>Match six pairs in Memory Match. Teacher demo controls grant passes; playing never awards stars.</p><p class="muted">Unfinished rounds stay with each fictional student, even after switching or reloading.</p><div class="button-row"><span id="passes" class="pill">0 game passes</span><button id="startGame" class="pink">Use 1 pass · Memory Match</button></div></div></div>
+      <div id="game" class="game" hidden><h3>Memory Match</h3><p id="gameStatus" role="status" aria-live="polite"></p><div id="memory" class="memory" role="group" aria-label="Memory Match cards"></div></div>
+    </section>
+
+    <section class="panel achievements" aria-labelledby="achievementsHeading"><div class="section-heading"><div><p class="eyebrow">EVERY LITTLE EFFORT COUNTS</p><h2 id="achievementsHeading">Your creative milestones</h2></div></div><p>Collected with lifetime stars, so shopping never takes a milestone away.</p><div id="badges" class="badges"></div></section>
+
+    <section class="panel feedback-panel" id="feedbackSection" aria-labelledby="feedbackHeading"><div><p class="eyebrow">MADE FOR ERIN'S FEEDBACK</p><h2 id="feedbackHeading">Help shape our next little step</h2><p>What feels right? What would you change for your class? Please use fictional examples only.</p><p class="muted">Copy your notes and send them however you prefer. Nothing is submitted or sent by this page.</p></div><div><label for="feedback">Your notes <span class="muted">(kept in this browser)</span></label><textarea id="feedback" rows="4" maxlength="6000" placeholder="I liked…&#10;It would help if…&#10;On my phone…"></textarea><div class="button-row"><button id="copyFeedback" class="lilac">Copy feedback + demo version</button><span class="version" id="version"></span></div><div id="copyFallback" hidden><label for="feedbackCopy">Select and copy this text</label><textarea id="feedbackCopy" rows="7" readonly></textarea></div><p id="feedbackStatus" role="status" aria-live="polite"></p></div></section>
+    <noscript><p class="demo-notice">Please enable JavaScript to try the pet demo. No accounts or cloud services are required.</p></noscript>
+  </main>
+  <footer><img src="./assets/paw.svg" width="25" height="25" alt=""><p>My Art Pets · Cutie Edition<br><span>For Erin's Level 1 Art &amp; Design class · Bishop Burton College</span></p><p class="muted">Fictional demo · Browser-only progress · No real student records</p></footer>
+</body>
+</html>
