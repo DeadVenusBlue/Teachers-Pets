@@ -1,157 +1,144 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  VERSION, STORAGE_KEY, LEGACY_KEY, initialState, validateState, loadState, cleanName,
-  award, grantPass, buy, care, startRound, flipCard, settleRound, createRoundTimer, feedbackText
+  VERSION, PETS, COLOURS, initialProgress, validateProgress, cleanPetName,
+  cleanDisplayName, normaliseEmail, careValue, purchaseChange, createRound,
+  startRoundChange, flipCard, settleRound, createRoundTimer,
+  formatInviteCode, parseInviteCode
 } from '../public/model.js';
 
-const pet = () => initialState().students.Alex;
-const memoryStorage = entries => ({ getItem: key => entries[key] ?? null });
 const mismatch = round => [0, round.cards.findIndex(card => card.symbol !== round.cards[0].symbol)];
 
-test('fresh demo has three fictional students, free care and zero stars/passes', () => {
-  const state = initialState();
-  assert.deepEqual(Object.keys(state.students), ['Alex', 'Jamie', 'Taylor']);
-  for (const p of Object.values(state.students)) {
-    assert.equal(p.balance, 0); assert.equal(p.lifetime, 0); assert.equal(p.passes, 0); assert.equal(p.round, null);
+test('fresh online progress is private-profile shaped with no rewards', () => {
+  const value = initialProgress();
+  assert.equal(value.schema, 3);
+  assert.deepEqual([value.balance, value.lifetime, value.passes, value.round], [0, 0, 0, null]);
+  assert.deepEqual([value.happy, value.full, value.energy], [75, 70, 80]);
+  assert.deepEqual(value.inventory, { bow: false, glasses: false, crown: false, headphones: false });
+  assert.equal('students' in value, false);
+});
+
+test('names and emails are bounded and normalised before online writes', () => {
+  assert.equal(cleanPetName('  Button\n  '), 'Button');
+  assert.equal(cleanPetName('a'.repeat(30)).length, 18);
+  assert.equal(cleanDisplayName(`  Alex\u0000 ${'R'.repeat(80)}  `).length, 60);
+  assert.equal(normaliseEmail('  ALEX@Example.TEST '), 'alex@example.test');
+});
+
+test('online snapshots are validated field by field', () => {
+  const fixed = validateProgress({
+    petName: '', petType: 99, colour: -1, balance: -5, lifetime: 2,
+    happy: 500, full: -2, energy: null, passes: Infinity,
+    inventory: { bow: true, fake: true }, wear: 'fake', round: { bad: true }
+  });
+  assert.equal(fixed.petName, 'Pebble');
+  assert.deepEqual([fixed.petType, fixed.colour, fixed.balance, fixed.lifetime], [0, 0, 0, 2]);
+  assert.deepEqual([fixed.happy, fixed.full, fixed.energy], [100, 0, 80]);
+  assert.deepEqual(fixed.inventory, { bow: true, glasses: false, crown: false, headphones: false });
+  assert.equal(fixed.wear, '');
+  assert.equal(fixed.round, null);
+});
+
+test('permanent purchases use exact prices once and never lower lifetime stars', () => {
+  const value = initialProgress();
+  assert.match(purchaseChange(value, 'bow').error, /Not enough/);
+  value.balance = value.lifetime = 25;
+  const first = purchaseChange(value, 'bow');
+  Object.assign(value, first.change);
+  assert.deepEqual([value.balance, value.lifetime, value.inventory.bow, value.wear], [15, 25, true, 'bow']);
+  assert.match(purchaseChange(value, 'bow').error, /already own/);
+  assert.equal(value.balance, 15);
+});
+
+test('repeatable treats deduct five and cap free-care stats at 100', () => {
+  const value = initialProgress();
+  value.balance = value.lifetime = 10;
+  for (let count = 0; count < 2; count++) Object.assign(value, purchaseChange(value, 'sparkle').change);
+  assert.deepEqual([value.balance, value.lifetime, value.happy, value.full], [0, 10, 100, 100]);
+  assert.equal(careValue(97, 20), 100);
+});
+
+test('a new Memory Match round consumes exactly one pass and cannot replace an unfinished round', () => {
+  const value = initialProgress();
+  assert.match(startRoundChange(value).error, /teacher/);
+  value.passes = 2;
+  const started = startRoundChange(value, { random: () => 0.2, now: () => 10, randomId: () => 'fixed' });
+  Object.assign(value, started.change);
+  assert.equal(value.passes, 1);
+  assert.equal(value.round.cards.length, 12);
+  for (let symbol = 0; symbol < PETS.length; symbol++) assert.equal(value.round.cards.filter(card => card.symbol === symbol).length, 2);
+  assert.match(startRoundChange(value).error, /saved round/);
+  assert.equal(value.passes, 1);
+});
+
+test('matching all pairs finishes without changing stars', () => {
+  const value = initialProgress();
+  value.passes = 1;
+  Object.assign(value, startRoundChange(value).change);
+  for (let symbol = 0; symbol < PETS.length; symbol++) {
+    const indexes = value.round.cards.flatMap((card, index) => card.symbol === symbol ? [index] : []);
+    for (const index of indexes) assert.equal(flipCard(value.round, index), true);
   }
-  const p = state.students.Alex;
-  for (let i = 0; i < 10; i++) for (const stat of ['happy', 'full', 'energy']) care(p, stat, 25);
-  assert.deepEqual([p.happy, p.full, p.energy, p.balance, p.lifetime], [100, 100, 100, 0, 0]);
+  assert.equal(value.round.finished, true);
+  assert.deepEqual([value.balance, value.lifetime, value.passes], [0, 0, 0]);
 });
 
-test('only explicit teacher demo actions award stars or passes', () => {
-  const p = pet();
-  assert.equal(award(p, 0, false), false); assert.equal(grantPass(p, false), false);
-  assert.equal(p.balance, 0); assert.equal(p.passes, 0);
-  assert.equal(award(p, 0, true), true); assert.equal(grantPass(p, true), true);
-  assert.deepEqual([p.balance, p.lifetime, p.passes], [3, 3, 1]);
+test('mismatches lock until the saved epoch-millisecond deadline', () => {
+  const round = createRound({ random: () => 0.3 });
+  const [first, second] = mismatch(round);
+  assert.equal(flipCard(round, first, 1000), true);
+  assert.equal(flipCard(round, first, 1000), false);
+  assert.equal(flipCard(round, second, 1000), true);
+  assert.equal(round.resolveAt, 1850);
+  assert.equal(flipCard(round, 3, 1001), false);
+  assert.equal(settleRound(round, 1849), false);
+  assert.equal(settleRound(round, 1850), true);
+  assert.deepEqual(round.open, []);
 });
 
-test('insufficient funds and duplicate permanent purchases never spend stars', () => {
-  const p = pet();
-  assert.match(buy(p, 'bow'), /Not enough/); assert.equal(p.balance, 0);
-  p.balance = p.lifetime = 25;
-  assert.equal(buy(p, 'bow'), '');
-  assert.deepEqual([p.balance, p.lifetime, p.wear], [15, 25, 'bow']);
-  assert.deepEqual(p.owned, ['bow']);
-  assert.match(buy(p, 'bow'), /already own/); assert.equal(p.balance, 15);
-  assert.equal(buy(p, 'glasses'), ''); assert.equal(p.balance, 0); assert.equal(p.lifetime, 25);
+test('valid saved rounds survive validation and corrupt decks are discarded', () => {
+  const value = initialProgress();
+  value.passes = 1;
+  Object.assign(value, startRoundChange(value).change);
+  const [first, second] = mismatch(value.round);
+  flipCard(value.round, first, 1000);
+  flipCard(value.round, second, 1000);
+  const reloaded = validateProgress(structuredClone(value));
+  assert.deepEqual(reloaded.round, value.round);
+  const bad = structuredClone(value);
+  bad.round.cards[0].symbol = 99;
+  assert.equal(validateProgress(bad).round, null);
 });
 
-test('repeatable treats cap care at 100 and preserve permanent collection/lifetime', () => {
-  const p = pet(); p.balance = p.lifetime = 10;
-  assert.equal(buy(p, 'sparkle'), ''); assert.equal(buy(p, 'sparkle'), '');
-  assert.deepEqual([p.balance, p.lifetime, p.happy, p.full], [0, 10, 100, 100]);
-  assert.deepEqual(p.owned, []);
-});
-
-test('saved shape is repaired field by field without throwing or losing healthy profiles', () => {
-  const raw = initialState();
-  raw.current = 'Someone real';
-  Object.assign(raw.students.Alex, { name: '   ', type: 400, color: -2, balance: -3, lifetime: 'ten', happy: 900, full: -50, energy: null, passes: Infinity, owned: ['bow', 'bow', 'sparkle', 'fake'], wear: 'fake', history: [42, 'safe'] });
-  raw.students.Jamie.name = 'Healthy'; delete raw.students.Taylor;
-  const fixed = validateState(raw);
-  assert.equal(fixed.current, 'Alex'); assert.equal(fixed.students.Alex.name, 'Pebble');
-  assert.deepEqual([fixed.students.Alex.type, fixed.students.Alex.color, fixed.students.Alex.happy, fixed.students.Alex.full, fixed.students.Alex.energy], [0, 0, 100, 0, 80]);
-  assert.deepEqual(fixed.students.Alex.owned, ['bow']); assert.equal(fixed.students.Alex.wear, '');
-  assert.deepEqual(fixed.students.Alex.history, ['safe']);
-  assert.equal(fixed.students.Jamie.name, 'Healthy'); assert.equal(fixed.students.Taylor.name, 'Pip');
-  assert.equal(validateState({ Alex: { balance: 25, lifetime: 10 } }).students.Alex.lifetime, 25);
-});
-
-test('malformed JSON, null, arrays and blocked storage recover gracefully', () => {
-  for (const value of ['{broken', 'null', '[]', 'false', '"hello"']) {
-    const result = loadState(memoryStorage({ [STORAGE_KEY]: value }));
-    assert.deepEqual(result.state, initialState()); assert.ok(result.notice);
-  }
-  assert.ok(loadState({ getItem() { throw Error('blocked'); } }).notice);
-  assert.ok(loadState(null).notice);
-});
-
-test('legacy progress migrates and JSON reload preserves valid names and purchases', () => {
-  const legacy = initialState().students;
-  legacy.Alex.name = 'Button'; legacy.Alex.balance = 8; legacy.Alex.lifetime = 18; legacy.Alex.owned = ['bow']; legacy.Alex.wear = 'bow';
-  const loaded = loadState(memoryStorage({ [LEGACY_KEY]: JSON.stringify(legacy) }));
-  assert.match(loaded.notice, /Imported/);
-  const reloaded = loadState(memoryStorage({ [STORAGE_KEY]: JSON.stringify(loaded.state) }));
-  assert.deepEqual(reloaded.state, loaded.state); assert.equal(reloaded.notice, '');
-});
-
-test('names are trimmed, bounded and control characters removed', () => {
-  assert.equal(cleanName('  Button\n  '), 'Button'); assert.equal(cleanName('a'.repeat(30)).length, 18);
-  assert.equal(cleanName(null), ''); assert.equal(cleanName('  '), '');
-});
-
-test('round consumes exactly one pass and cannot be replaced while unfinished', () => {
-  const p = pet(); assert.match(startRound(p), /needed/);
-  grantPass(p, true); grantPass(p, true); assert.equal(startRound(p), '');
-  const first = p.round;
-  assert.match(startRound(p), /saved round/); assert.equal(p.round, first); assert.equal(p.passes, 1);
-  assert.equal(p.round.cards.length, 12);
-  for (let s = 0; s < 6; s++) assert.equal(p.round.cards.filter(c => c.symbol === s).length, 2);
-});
-
-test('matching every pair finishes without awarding stars and a new round uses one pass', () => {
-  const p = pet(); p.passes = 2; startRound(p);
-  for (let s = 0; s < 6; s++) {
-    const indices = p.round.cards.flatMap((c, i) => c.symbol === s ? [i] : []);
-    for (const i of indices) assert.equal(flipCard(p.round, i), true);
-  }
-  assert.equal(p.round.finished, true); assert.equal(p.round.moves, 6);
-  assert.deepEqual([p.balance, p.lifetime, p.passes], [0, 0, 1]);
-  const oldId = p.round.id; assert.equal(startRound(p), '');
-  assert.notEqual(p.round.id, oldId); assert.equal(p.passes, 0);
-});
-
-test('mismatch locks flipping until its deadline; duplicate/invalid flips are ignored', () => {
-  const p = pet(); p.passes = 1; startRound(p);
-  const [a, b] = mismatch(p.round);
-  assert.equal(flipCard(p.round, a, 1000), true);
-  assert.equal(flipCard(p.round, a, 1000), false); assert.equal(flipCard(p.round, -1), false);
-  flipCard(p.round, b, 1000);
-  assert.equal(p.round.moves, 1); assert.equal(flipCard(p.round, 3, 1001), false);
-  assert.equal(settleRound(p.round, 1849), false); assert.equal(settleRound(p.round, 1850), true);
-  assert.deepEqual(p.round.open, []); assert.equal(p.round.resolveAt, null);
-});
-
-test('unfinished and pending rounds survive JSON reload; corrupted rounds are discarded', () => {
-  const state = initialState(); const p = state.students.Alex; p.passes = 1; startRound(p);
-  const [a, b] = mismatch(p.round); flipCard(p.round, a); flipCard(p.round, b);
-  const reloaded = validateState(JSON.parse(JSON.stringify(state)));
-  assert.deepEqual(reloaded.students.Alex.round, p.round);
-  assert.equal(reloaded.students.Alex.passes, 0);
-  const bad = structuredClone(state); bad.students.Alex.round.cards[0].symbol = 99;
-  assert.equal(validateState(bad).students.Alex.round, null);
-});
-
-test('cancelled callback cannot mutate a different student, reset state or a new round', () => {
+test('stale timer callbacks check both generation and round identity', () => {
   let now = 1000;
   const jobs = [];
   const timer = createRoundTimer({ schedule: fn => { jobs.push(fn); return jobs.length; }, cancel() {}, now: () => now });
-  let state = initialState();
-  for (const name of ['Alex', 'Jamie']) { state.students[name].passes = 1; startRound(state.students[name]); }
-  const roundA = state.students.Alex.round;
-  for (const i of mismatch(roundA)) flipCard(roundA, i, now);
-  let student = 'Alex';
-  const getActive = () => ({ student, round: state.students[student].round });
+  const first = createRound();
+  for (const index of mismatch(first)) flipCard(first, index, now);
+  let active = { uid: 'student-a', roundId: first.id };
   let resolved = 0;
-  timer.arm(student, roundA, getActive, () => resolved++);
-  student = 'Jamie'; timer.stop();
-  const roundB = state.students.Jamie.round;
-  flipCard(roundB, 0, now); now = 2000; jobs[0]();
-  assert.deepEqual(roundB.open, [0]); assert.equal(roundA.open.length, 2); assert.equal(resolved, 0);
-  student = 'Alex'; timer.arm(student, roundA, getActive, () => resolved++); jobs[1]();
-  assert.equal(roundA.open.length, 0); assert.equal(resolved, 1);
-  for (const i of mismatch(roundA)) flipCard(roundA, i, now);
-  timer.arm(student, roundA, getActive, () => resolved++);
-  timer.stop(); state = initialState(); jobs[2]();
-  assert.equal(state.students.Alex.round, null); assert.equal(resolved, 1);
-  state.students.Alex.passes = 1; startRound(state.students.Alex); jobs[2]();
-  assert.deepEqual(state.students.Alex.round.open, []); assert.equal(resolved, 1);
+  timer.arm('student-a', first, () => active, () => resolved++);
+  active = { uid: 'student-b', roundId: 'another-round' };
+  timer.stop();
+  now = 2000;
+  jobs[0]();
+  assert.equal(resolved, 0);
+  active = { uid: 'student-a', roundId: first.id };
+  timer.arm('student-a', first, () => active, () => resolved++);
+  jobs[1]();
+  assert.equal(resolved, 1);
 });
 
-test('feedback includes the exact displayed version and browser-only limits', () => {
-  const text = feedbackText('  Lovely pets!  ');
-  assert.ok(text.includes(VERSION)); assert.match(text, /Lovely pets!/); assert.match(text, /current browser/);
+test('invitation codes accept only bounded Firestore-safe identifiers', () => {
+  const code = formatInviteCode('level-1-art', 'a'.repeat(32));
+  assert.deepEqual(parseInviteCode(code), { classId: 'level-1-art', inviteId: 'a'.repeat(32), code });
+  assert.deepEqual(parseInviteCode(`https://example.test/#join=${encodeURIComponent(code)}`), parseInviteCode(code));
+  for (const invalid of ['', 'class:short', '../class:' + 'a'.repeat(32), `class:${'!' .repeat(30)}`]) assert.equal(parseInviteCode(invalid), null);
+});
+
+test('version and choice bounds remain aligned with the Cutie Edition UI', () => {
+  assert.equal(VERSION, '0.3.0');
+  assert.equal(PETS.length, 6);
+  assert.equal(COLOURS.length, 5);
 });

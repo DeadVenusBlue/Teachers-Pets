@@ -1,11 +1,33 @@
 {
-  "name": "my-art-pets-demo",
-  "version": "0.2.0",
+  "name": "my-art-pets",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
   "scripts": {
     "start": "node scripts/serve.mjs",
-    "test": "node --test"
+    "emulators": "firebase emulators:start --only auth,firestore,hosting --project demo-my-art-pets",
+    "seed:local": "node scripts/seed-local.mjs",
+    "prepare:production": "node scripts/prepare-production.mjs",
+    "test": "node --test tests/model.test.mjs tests/app.test.mjs tests/site.test.mjs tests/client.test.mjs",
+    "test:rules": "firebase emulators:exec --only firestore --project demo-my-art-pets \"node --test tests/firestore.rules.test.mjs\"",
+    "test:e2e": "firebase emulators:exec --only auth,firestore,hosting --project demo-my-art-pets \"playwright test\"",
+    "test:all": "npm run test && npm run test:rules && npm run test:e2e",
+    "provision:teacher": "node scripts/provision-teacher.mjs"
   },
-  "engines": { "node": ">=20" }
+  "engines": {
+    "node": ">=22"
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "5.0.2",
+    "@playwright/test": "1.65.0",
+    "firebase": "12.19.0",
+    "firebase-admin": "13.10.0",
+    "firebase-tools": "15.36.0"
+  },
+  "overrides": {
+    "@firebase/app": "0.16.2",
+    "@firebase/app-compat": "0.5.18",
+    "@firebase/database": "1.1.5",
+    "@firebase/database-compat": "2.1.7"
+  }
 }

@@ -1,62 +1,83 @@
 # My Art Pets · Cutie Edition
 
-A small feedback demo for Erin's Level 1 Art & Design class at Bishop Burton College. It builds on the original six pet illustrations and pastel styling. Current demo: **v0.2.0**.
+**v0.3.0 — accounts milestone, local review only.** Teachers invite students and award stars; students sign in to their own pet. Firebase Authentication provides identity and Firestore stores shared progress. The original artwork, care actions, shop, lifetime achievements and saved Memory Match rounds are retained.
 
-**Fictional data only. Teacher demo controls are unrestricted.** Progress and feedback drafts save only in the current browser on the current device. Erin's phone and your computer have separate progress. Local preview and a hosted URL also have separate storage. No real authentication, private profiles, database, analytics or external feedback service is included.
+The existing **v0.2.0 feedback demo remains live at https://erins-proj-788fe.web.app/**. Cal has approved publication and the production Firestore rules/indexes are deployed; Hosting awaits trusted teacher provisioning. See [FIREBASE_SETUP.md](FIREBASE_SETUP.md) for the current release record. Demo fictional profiles and local browser saves are separate from this version. New accounts start fresh; demo localStorage is never imported into class records.
 
-## Local preview
+## Run locally on Windows
 
-Use Node.js 20 or newer (the local checks used 20.18.0). No install or build step is needed.
+Requirements: Node.js 22+, Java 21+, Edge, and internet access for the Firebase web SDK from `www.gstatic.com`. The project stays buildless; npm packages provide local development, tests and trusted administration. Only `public/` is served.
 
 ```powershell
-cd E:\ErinsClassProj
-npm.cmd start
+cd 'C:\CALLUMS DOCS\TeachersPets\Teachers-Pets'
+npm.cmd ci
 ```
 
-Open **http://127.0.0.1:4173** in a browser. Keep the terminal running; Ctrl+C stops the server. Use HTTP rather than double-clicking `index.html`, because the JavaScript uses native modules. The preview listens only on this computer's loopback address; this URL is not a phone preview or a shareable hosted link.
+On this PC, Java 21 was downloaded into the ignored `.tools/` folder. In the terminal that will run Firebase, use:
+
+```powershell
+$env:PATH = "$PWD\.tools\jre-21\jdk-21.0.13+9-jre\bin;$env:PATH"
+java -version
+npm.cmd run emulators
+```
+
+On a fresh clone, install Java 21 and put its `bin` folder on PATH instead. The first emulator run may download Firebase's emulator files. No Firebase sign-in, service-account key, billing or live project setup is needed for the local workflow. Use `.cmd` launchers if PowerShell blocks `.ps1` files.
+
+Keep that terminal running. In a second terminal in the same repository:
+
+```powershell
+npm.cmd run seed:local
+```
+
+Open **http://127.0.0.1:5000**. The emulator UI is **http://127.0.0.1:4000**. `localhost` and `127.0.0.1` always use the isolated `demo-my-art-pets` emulator project. The only real project configured for eventual release is **`erins-proj-788fe`**.
+
+| Local fictional account | Email | Password |
+| --- | --- | --- |
+| Teacher Erin | `erin@example.test` | `Teacher123!` |
+| Student Alex | `alex@example.test` | `Student123!` |
+| Student Jamie | `jamie@example.test` | `Student123!` |
+
+These are emulator-only credentials. The seed creates two students with zero stars and no passes. Rerunning it preserves existing progress and student removals; it does not reset passwords changed through a reset flow.
+
+## Cal's walkthrough
+
+1. Use a normal Edge window for Erin and an InPrivate window for Alex. For Jamie, use a separate Edge profile or another browser; two InPrivate windows share a session.
+2. Sign in as Erin, select **Alex**, then tap **Attendance +3 ★**. Alex's window should show three available and three lifetime stars. Sign Alex out, sign back in and reload: the stars remain.
+3. Award enough stars to buy a **Pretty bow** (10). Buy it as Alex. Available stars decrease once; lifetime stars stay intact. Change the pet, background and name, and try free care.
+4. Grant a Memory Match pass as Erin. Start the game as Alex, reveal a card, reload and finish the same round. Reloading or signing out does not consume another pass; completing a game never awards stars.
+5. Try **Invite a student** with a new fictional email such as `taylor@example.test`. Copy the link into a separate signed-out session. Create the invited account. The Auth emulator prints the verification link in the first terminal: open it, return to the app and click **I've verified my email**. The roster changes from invitation ready to joined.
+6. Try **Forgotten your password?**. The emulator prints a reset URL with `newPassword=NEW_PASSWORD_HERE`; replace that placeholder with a chosen test password before opening it. Return and sign in with the new password. No real emails are sent by the emulator.
+7. Edit a student's display name or remove their class access from Erin's roster. A removed student's pet becomes inaccessible, including after reload. The saved record is retained. Reinstatement is currently a trusted Cal/admin operation, not self-enrolment.
+
+For an account with no assignment, use the emulator UI's Authentication tab to create a fictional email/password user and mark the email verified. Signing in shows the account-needs-linking message; it never creates a role.
+
+Stop the emulators with Ctrl+C. The default session is disposable: restarting starts empty and requires `seed:local` again. To retain local data across emulator restarts, use this instead of the ordinary start command:
+
+```powershell
+npm.cmd run emulators -- --import=.emulator-data --export-on-exit=.emulator-data
+```
+
+The export directory is ignored by Git. A first run without an existing import starts empty. A reload or sign-out does not clear progress while the emulators are running. These loopback addresses work on this PC only; physical-phone access has not been enabled or verified.
+
+## Checks
+
+Stop any manually running emulators before the automated suites; the tests use the same ports and clear fictional data. Ensure Java 21 is on PATH in that terminal.
 
 ```powershell
 npm.cmd test
+npm.cmd run test:rules
+npm.cmd run test:e2e
 ```
 
-On shells without the PowerShell npm execution-policy issue, `npm start` and `npm test` work too.
+The last command launches installed Edge headlessly. Screenshots and failure traces are stored under ignored `test-results/`. `npm.cmd start` still serves only `public/` at port 4173, but sign-in needs the Auth and Firestore emulators running; port 5000 is the recommended complete preview.
 
-## Try the demo
-
-1. Choose Alex, Jamie or Taylor, then name a pet and try the six creatures and five backgrounds.
-2. Feed, play and rest for free. Stats cap at 100; pets never die and stats never decay.
-3. Open **Teacher demo** and award stars. Buy an accessory, equip/put it away and check the milestones. Available stars decrease; lifetime stars stay.
-4. Grant a game pass and start Memory Match. Each round uses one pass. Switching students or reloading preserves unfinished rounds. Playing never awards stars.
-5. Add notes under **Leave feedback**, then copy them with the demo version. If automatic copying is blocked, a selected text field is provided for manual copy. Send the copied text yourself.
-6. **Reset all demo progress** clears all three profiles and rounds after confirmation, while keeping feedback notes.
-
-## Firebase Hosting
-
-The corrected, user-confirmed project is **`erins-proj-788fe`**. Use this project for all future deployments. `.firebaserc` sets this default, and `firebase.json` serves only `public/`. The CLI is already installed and authenticated. Use **`firebase.cmd`** for all Firebase commands because PowerShell blocks the `.ps1` launcher.
-
-To publish an authorized update from this directory:
-
-```powershell
-npm.cmd test
-firebase.cmd deploy --only hosting --project erins-proj-788fe
-```
-
-This command publishes the static demo to the confirmed project's default Hosting site. Deploy Hosting only; leave Authentication, Firestore and billing unchanged. No `firebase init`, build, Firebase SDK or backend setup is needed. Do not run a blanket deployment or replace the page with a generated welcome file.
-
-Use the Hosting URL returned by the successful deployment. Check the demo version and critical interactions, then share the URL with Erin. Ask her to copy feedback from the page. Her progress remains on her own browser/device. See `DEVELOPMENT.md` for actual verification results and any outstanding browser checks.
-
-**Current release status:** a deployment to the previously supplied project failed on 12 November 2026 with **403 PERMISSION_DENIED**; no demo files were uploaded or released. The user subsequently corrected the project ID to `erins-proj-788fe`. Deployment and account permissions on this corrected project have not yet been verified. The previous project's permission errors do not establish a permission issue on the corrected project. No live My Art Pets URL is available yet. Do not change IAM, Authentication, Firestore or billing as part of deployment.
-
-The HTML robots meta tag and Hosting `X-Robots-Tag` request no indexing. **These are search visibility hints, not access control. Anyone with access to the URL can use this fictional demo and its teacher controls.**
-
-Official instructions: [Firebase Hosting quickstart](https://firebase.google.com/docs/hosting/quickstart), [static Hosting configuration](https://firebase.google.com/docs/hosting/full-config).
+See [DEVELOPMENT.md](DEVELOPMENT.md) for actual results and limitations, and [FIREBASE_SETUP.md](FIREBASE_SETUP.md) for the later console setup, trusted teacher provisioning and explicit deployment commands. **Do not run live setup or deployment until Cal has reviewed the flows.**
 
 ## Files
 
-- `My_Art_Pets_Cutie_Edition.html` — unchanged original reference, outside the hosting root.
-- `public/index.html`, `styles.css`, `app.js` — page, responsive styling and interaction handlers.
-- `public/model.js` — validated state, pet/shop rules and game lifecycle.
-- `public/artwork.js`, `public/assets/paw.svg` — original pets and matching new illustrations.
-- `scripts/serve.mjs` — dependency-free local static server, restricted to `public/`.
-- `tests/` — Node tests; no browser or runtime packages required.
-- `AGENTS.md`, `DEVELOPMENT.md` — project guidance, verification and next milestone.
+- `My_Art_Pets_Cutie_Edition.html`: unchanged design reference, never hosted.
+- `public/`: HTML, CSS, application/model/artwork and modular Firebase client. No privileged credentials or Admin SDK.
+- `firestore.rules`: server-enforced identity, invitation, reward and spending permissions.
+- `scripts/seed-local.mjs`: fictional, local-only bootstrap.
+- `scripts/provision-teacher.mjs`: trusted live administration, outside the hosting root; requires separate credentials.
+- `tests/`: Node regressions, direct Firestore Rules tests and Edge emulator journeys.

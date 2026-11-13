@@ -5,79 +5,190 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex, nofollow, noarchive">
   <meta name="theme-color" content="#fff7fc">
-  <meta name="description" content="A fictional, browser-only My Art Pets demo for Erin's feedback.">
-  <title>My Art Pets · Cutie Edition demo</title>
+  <meta name="description" content="My Art Pets, a private class pet and rewards space for Erin's Art and Design students.">
+  <title>My Art Pets · Cutie Edition</title>
   <link rel="icon" href="./assets/paw.svg" type="image/svg+xml">
   <link rel="stylesheet" href="./styles.css">
   <script type="module" src="./app.js"></script>
 </head>
 <body>
-  <a class="skip-link" href="#main">Skip to your pet</a>
+  <a class="skip-link" href="#main">Skip to main content</a>
   <header class="site-header">
     <div class="header-inner">
       <a class="brand" href="#main"><img src="./assets/paw.svg" width="42" height="42" alt=""><span>My Art Pets <span class="edition">CUTIE EDITION</span></span></a>
-      <div class="student-controls">
-        <label for="student">Fictional student</label>
-        <select id="student"><option>Alex</option><option>Jamie</option><option>Taylor</option></select>
-        <button id="teacherToggle" class="lilac" aria-expanded="false" aria-controls="teacherPanel">Teacher demo</button>
+      <div id="accountBar" class="account-bar" hidden>
+        <div class="account-details"><strong id="accountName"></strong><span id="accountEmail"></span></div>
+        <button id="signOut" class="quiet" type="button">Sign out</button>
       </div>
     </div>
   </header>
+
   <main id="main" tabindex="-1">
-    <div class="demo-notice"><span class="demo-label">FEEDBACK DEMO</span><p>Fictional students only. <strong>Teacher controls are unrestricted.</strong> Progress saves only in this browser on this device; it does not sync to other phones or computers. No real accounts or private profiles.</p></div>
-    <div id="storageWarning" class="storage-warning" role="status" hidden></div>
-    <div class="welcome"><div><p class="eyebrow">A LITTLE CREATIVITY. A LITTLE COMPANY.</p><h1>Make art. Grow together.</h1><p>Your very own little buddy, cheering you on.</p></div><div id="welcomeArt" class="welcome-art" aria-hidden="true"></div></div>
-    <nav class="section-nav" aria-label="Explore the demo"><a href="#buddy">My buddy</a><a href="#shopSection">Star Shop</a><a href="#arcade">Playtime</a><a href="#feedbackSection">Leave feedback</a></nav>
-    <p id="message" class="message" role="status" aria-live="polite" aria-atomic="true"></p>
-
-    <section id="teacherPanel" class="panel teacher-panel" aria-labelledby="teacherHeading" hidden>
-      <div class="section-heading"><div><p class="eyebrow">UNRESTRICTED DEMO CONTROLS</p><h2 id="teacherHeading">Erin's teacher corner</h2></div><span class="pill" id="teacherStudent"></span></div>
-      <p>Try awarding stars and a game pass to the selected fictional student. Anyone can open these controls in this demo. Real students must never award themselves stars.</p>
-      <div id="awards" class="button-row"></div>
-      <div class="teacher-actions"><button id="grantPass" class="mint">Grant 1 game pass</button><button id="reset" class="quiet">Reset all demo progress</button></div>
-      <details><summary>Recent activity for this student</summary><ol id="history" class="history"></ol></details>
+    <section id="loadingView" class="entry-view" aria-live="polite">
+      <div class="loading-paw" aria-hidden="true"><img src="./assets/paw.svg" width="64" height="64" alt=""></div>
+      <p>Opening your class space…</p>
     </section>
 
-    <div class="buddy-grid" id="buddy">
-      <section class="panel pet-panel" aria-labelledby="buddyHeading">
-        <div class="section-heading"><h2 id="buddyHeading">Meet your little buddy!</h2><span class="mini-label" id="studentLabel">Alex's pet</span></div>
-        <div class="pet-scene"><span class="scene-sparkle sparkle-one" aria-hidden="true">✦</span><span class="scene-sparkle sparkle-two" aria-hidden="true">✧</span><div class="pet" id="petBg"><div id="petArt" class="creature"></div><div id="petAccessory" class="accessory" aria-hidden="true"></div></div><span class="scene-flower" aria-hidden="true">✿</span></div>
-        <h3 id="petName" class="pet-name">Pebble</h3><p id="wearDescription" class="muted accessory-description">No accessory</p>
-        <div class="balance-row"><span class="pill yellow" id="balance">0 ★ available</span><span class="pill" id="lifetime">0 lifetime stars</span></div>
-        <form id="renameForm" class="rename-form"><label for="rename">Pet name</label><div><input id="rename" name="petName" maxlength="18" required autocomplete="off" value="Pebble"><button class="mint" type="submit">Rename</button></div></form>
-        <fieldset><legend>Choose a creature</legend><div id="pets" class="pet-choices"></div></fieldset>
-        <fieldset><legend>Choose a background</legend><div id="colors" class="colour-choices"></div></fieldset>
+    <section id="authView" class="entry-view auth-view" aria-labelledby="loginHeading" hidden>
+      <div class="auth-illustration" aria-hidden="true"><img src="./assets/paw.svg" width="76" height="76" alt=""><span>✦</span><span>♡</span></div>
+      <div class="auth-card">
+        <p class="eyebrow">WELCOME TO YOUR LITTLE CREATIVE SPACE</p>
+        <h1 id="loginHeading">Sign in to My Art Pets</h1>
+        <p class="auth-intro">Teachers can manage their class and students can visit their own pet. Your progress follows you between devices.</p>
+        <form id="loginForm" class="stacked-form">
+          <label for="loginEmail">Email address</label>
+          <input id="loginEmail" name="email" type="email" autocomplete="email" inputmode="email" required>
+          <label for="loginPassword">Password</label>
+          <input id="loginPassword" name="password" type="password" autocomplete="current-password" required>
+          <button id="loginSubmit" class="pink primary-action" type="submit">Sign in</button>
+        </form>
+        <div class="auth-links">
+          <button id="showReset" class="text-button" type="button">Forgotten your password?</button>
+          <button id="showRegister" class="text-button" type="button">Join with an invitation</button>
+        </div>
+
+        <div id="resetPanel" class="auth-subpanel" hidden>
+          <h2>Reset your password</h2>
+          <p>Enter the email address for your account. We’ll send a secure reset link if an account matches it.</p>
+          <form id="resetForm" class="stacked-form">
+            <label for="resetEmail">Email address</label>
+            <input id="resetEmail" name="email" type="email" autocomplete="email" inputmode="email" required>
+            <div class="form-actions"><button class="lilac" type="submit">Send reset email</button><button id="cancelReset" class="quiet" type="button">Back to sign in</button></div>
+          </form>
+        </div>
+
+        <div id="registerPanel" class="auth-subpanel" hidden>
+          <h2>Join your class</h2>
+          <p>Use the email address and invitation code your teacher gave you. You’ll verify that email before class access is linked.</p>
+          <form id="registerForm" class="stacked-form">
+            <label for="registerEmail">Invited email address</label>
+            <input id="registerEmail" name="email" type="email" autocomplete="email" inputmode="email" required>
+            <label for="registerPassword">Create a password</label>
+            <input id="registerPassword" name="new-password" type="password" autocomplete="new-password" minlength="6" required aria-describedby="passwordHint">
+            <p id="passwordHint" class="field-hint">Use at least 6 characters. Never share your password with your teacher or classmates.</p>
+            <label for="registerConfirm">Confirm your password</label>
+            <input id="registerConfirm" name="confirm-password" type="password" autocomplete="new-password" minlength="6" required>
+            <label for="inviteCode">Invitation code</label>
+            <input id="inviteCode" name="invite-code" type="text" autocomplete="off" autocapitalize="none" spellcheck="false" required>
+            <div class="form-actions"><button class="mint" type="submit">Create invited account</button><button id="cancelRegister" class="quiet" type="button">Back to sign in</button></div>
+          </form>
+        </div>
+
+        <p id="authMessage" class="message auth-message" role="status" aria-live="polite" aria-atomic="true"></p>
+        <p class="privacy-note"><strong>Private class space:</strong> signing in does not assign a class or role. Only a verified, teacher-issued invitation can link a student. My Art Pets has no messaging, public profiles or student directory.</p>
+      </div>
+    </section>
+
+    <section id="verifyView" class="entry-view" aria-labelledby="verifyHeading" hidden>
+      <div class="status-card">
+        <img src="./assets/paw.svg" width="58" height="58" alt="">
+        <p class="eyebrow">ONE QUICK CHECK</p>
+        <h1 id="verifyHeading">Verify your email</h1>
+        <p>We sent a verification link to <strong id="verifyEmail"></strong>. Open it in your email, then come back here to finish joining your class.</p>
+        <p class="muted">Check your junk folder if it has not arrived. Class access stays locked until the invited email is verified.</p>
+        <div class="button-row centred-actions"><button id="refreshVerification" class="mint" type="button">I’ve verified my email</button><button id="resendVerification" class="lilac" type="button">Send another email</button><button id="verifySignOut" class="quiet" type="button">Sign out</button></div>
+      </div>
+    </section>
+
+    <section id="unlinkedView" class="entry-view" aria-labelledby="unlinkedHeading" hidden>
+      <div class="status-card">
+        <img src="./assets/paw.svg" width="58" height="58" alt="">
+        <p class="eyebrow">ACCOUNT NOT LINKED YET</p>
+        <h1 id="unlinkedHeading">Your account needs a class profile</h1>
+        <p id="unlinkedMessage">This signed-in account has not been assigned to a My Art Pets class.</p>
+        <p>Signed in as <strong id="unlinkedEmail"></strong>. Ask Cal or your teacher to check the invited email address. Signing in by itself never grants class access or lets anyone choose a role.</p>
+        <button id="unlinkedSignOut" class="quiet" type="button">Sign out</button>
+      </div>
+    </section>
+
+    <section id="teacherView" class="teacher-view" aria-labelledby="teacherHeading" hidden>
+      <div class="dashboard-hero"><div><p class="eyebrow">TEACHER DASHBOARD</p><h1 id="teacherHeading"><span id="className">Erin’s Art &amp; Design class</span></h1><p id="classSummary">Loading your class…</p></div><div class="dashboard-doodle" aria-hidden="true">✦ ♡ ✧</div></div>
+      <p id="teacherMessage" class="message" role="status" aria-live="polite" aria-atomic="true"></p>
+      <div class="teacher-grid">
+        <section class="panel award-panel" aria-labelledby="awardHeading">
+          <div class="section-heading"><div><p class="eyebrow">QUICK REWARDS</p><h2 id="awardHeading">Award stars</h2></div><span id="selectedStudentStatus" class="pill">Choose a student</span></div>
+          <label for="teacherStudentSelect">Student</label>
+          <select id="teacherStudentSelect"><option value="">Choose a joined student…</option></select>
+          <div class="selected-balance"><span>Available stars</span><strong id="selectedStudentBalance">—</strong></div>
+          <p class="muted">Select a student, then tap a reason. The stars appear on their pet straight away.</p>
+          <div id="teacherAwards" class="award-grid"></div>
+          <button id="teacherGrantPass" class="lilac full-button" type="button">Grant 1 Memory Match pass</button>
+          <details class="activity-details"><summary>Recent activity</summary><ol id="teacherActivity" class="history"><li>Select a student to see activity.</li></ol></details>
+        </section>
+
+        <section class="panel invite-panel" aria-labelledby="inviteHeading">
+          <div class="section-heading"><div><p class="eyebrow">CLASS ACCESS</p><h2 id="inviteHeading">Invite a student</h2></div><span class="heart-doodle" aria-hidden="true">♡</span></div>
+          <p>Create an invitation for the student’s email address. They must verify that exact email before joining.</p>
+          <form id="inviteForm" class="stacked-form compact-form">
+            <label for="inviteName">Student display name</label>
+            <input id="inviteName" name="display-name" type="text" autocomplete="off" maxlength="50" required>
+            <label for="inviteEmail">Student email address</label>
+            <input id="inviteEmail" name="email" type="email" autocomplete="off" inputmode="email" required>
+            <button id="inviteSubmit" class="mint" type="submit">Create invitation</button>
+          </form>
+          <div id="inviteResult" class="invite-result" hidden>
+            <p><strong>Invitation ready.</strong> Share this private link only with the named student.</p>
+            <label for="inviteLink">Invitation link</label>
+            <input id="inviteLink" type="text" readonly>
+            <button id="copyInvite" class="lilac" type="button">Copy invitation link</button>
+          </div>
+          <p class="privacy-note">Students can see only their own pet. Removing class access signs them out of this class on their next access check. My Art Pets does not include messaging.</p>
+        </section>
+      </div>
+
+      <section class="panel roster-panel" aria-labelledby="rosterHeading">
+        <div class="section-heading"><div><p class="eyebrow">YOUR CLASS</p><h2 id="rosterHeading">Students and invitations</h2></div></div>
+        <p>See who has joined, update a display name or remove class access. Account passwords are never shown or stored here.</p>
+        <div id="roster" class="roster" aria-live="polite"><p class="muted">Loading your roster…</p></div>
+      </section>
+    </section>
+
+    <section id="studentView" class="student-view" aria-labelledby="studentWelcome" hidden>
+      <div class="student-notice"><span class="student-notice-label">YOUR PRIVATE PET</span><p>Only you and authorised teachers can access this class profile. There is no messaging or public student directory.</p></div>
+      <div class="welcome"><div><p class="eyebrow">A LITTLE CREATIVITY. A LITTLE COMPANY.</p><h1 id="studentWelcome">Make art. Grow together.</h1><p>Your very own little buddy, cheering you on.</p></div><div id="welcomeArt" class="welcome-art" aria-hidden="true"></div></div>
+      <nav class="section-nav" aria-label="Explore My Art Pets"><a href="#buddy">My buddy</a><a href="#shopSection">Star Shop</a><a href="#arcade">Playtime</a><a href="#achievements">Milestones</a></nav>
+      <p id="message" class="message" role="status" aria-live="polite" aria-atomic="true"></p>
+
+      <div class="buddy-grid" id="buddy">
+        <section class="panel pet-panel" aria-labelledby="buddyHeading">
+          <div class="section-heading"><h2 id="buddyHeading">Meet your little buddy!</h2><span class="mini-label" id="studentLabel">Your pet</span></div>
+          <div class="pet-scene"><span class="scene-sparkle sparkle-one" aria-hidden="true">✦</span><span class="scene-sparkle sparkle-two" aria-hidden="true">✧</span><div class="pet" id="petBg"><div id="petArt" class="creature"></div><div id="petAccessory" class="accessory" aria-hidden="true"></div></div><span class="scene-flower" aria-hidden="true">✿</span></div>
+          <h3 id="petName" class="pet-name">Pebble</h3><p id="wearDescription" class="muted accessory-description">No accessory</p>
+          <div class="balance-row"><span class="pill yellow" id="balance">0 ★ available</span><span class="pill" id="lifetime">0 lifetime stars</span></div>
+          <form id="renameForm" class="rename-form"><label for="rename">Pet name</label><div><input id="rename" name="petName" maxlength="18" required autocomplete="off" value="Pebble"><button class="mint" type="submit">Rename</button></div></form>
+          <fieldset><legend>Choose a creature</legend><div id="pets" class="pet-choices"></div></fieldset>
+          <fieldset><legend>Choose a background</legend><div id="colors" class="colour-choices"></div></fieldset>
+        </section>
+
+        <section class="panel care-panel" aria-labelledby="careHeading">
+          <div class="section-heading"><h2 id="careHeading">A little love goes a long way</h2><span class="heart-doodle" aria-hidden="true">♡</span></div>
+          <p>Settle in, have a snack and enjoy a little playtime.</p>
+          <div class="stat-row"><label for="happyBar">Happiness</label><output id="happyText" for="happyBar">75%</output><progress id="happyBar" max="100" value="75">75%</progress></div>
+          <div class="stat-row fullness"><label for="fullBar">Fullness</label><output id="fullText" for="fullBar">70%</output><progress id="fullBar" max="100" value="70">70%</progress></div>
+          <div class="stat-row energy"><label for="energyBar">Energy</label><output id="energyText" for="energyBar">80%</output><progress id="energyBar" max="100" value="80">80%</progress></div>
+          <div class="care-buttons"><button id="feed" class="mint" type="button"><span aria-hidden="true">♡</span> Feed <small>Always free</small></button><button id="play" class="yellow" type="button"><span aria-hidden="true">✦</span> Play <small>Always free</small></button><button id="rest" class="lilac" type="button"><span aria-hidden="true">☾</span> Rest <small>Always free</small></button></div>
+          <p class="kind-note">No rush, little artist. Your pet never dies, and its care stats never fall while you’re away.</p>
+          <div class="wardrobe"><h3>My accessory collection</h3><p class="muted">Little treasures to keep forever.</p><div id="owned" class="button-row"></div></div>
+          <div id="careArt" class="care-art" aria-hidden="true"></div>
+        </section>
+      </div>
+
+      <section class="panel" id="shopSection" aria-labelledby="shopHeading">
+        <div class="section-heading"><div><p class="eyebrow">SOMETHING SPECIAL FOR YOUR BUDDY</p><h2 id="shopHeading">The Star Shop</h2></div><span class="handwritten" aria-hidden="true">small treats, big smiles ✧</span></div>
+        <p>Spend available stars on permanent accessories or a tasty treat. Your lifetime stars always stay with you.</p><div class="shop-grid" id="shop"></div>
       </section>
 
-      <section class="panel care-panel" aria-labelledby="careHeading">
-        <div class="section-heading"><h2 id="careHeading">A little love goes a long way</h2><span class="heart-doodle" aria-hidden="true">♡</span></div>
-        <p>Settle in, have a snack and enjoy a little playtime.</p>
-        <div class="stat-row"><label for="happyBar">Happiness</label><output id="happyText">75%</output><progress id="happyBar" max="100" value="75">75%</progress></div>
-        <div class="stat-row fullness"><label for="fullBar">Fullness</label><output id="fullText">70%</output><progress id="fullBar" max="100" value="70">70%</progress></div>
-        <div class="stat-row energy"><label for="energyBar">Energy</label><output id="energyText">80%</output><progress id="energyBar" max="100" value="80">80%</progress></div>
-        <div class="care-buttons"><button id="feed" class="mint"><span aria-hidden="true">♡</span> Feed <small>Always free</small></button><button id="play" class="yellow"><span aria-hidden="true">✦</span> Play <small>Always free</small></button><button id="rest" class="lilac"><span aria-hidden="true">☾</span> Rest <small>Always free</small></button></div>
-        <p class="kind-note">No rush, little artist. Your pet never dies, and its care stats never fall while you're away.</p>
-        <div class="wardrobe"><h3>My accessory collection</h3><p class="muted">Little treasures to keep forever.</p><div id="owned" class="button-row"></div></div>
-        <div id="careArt" class="care-art" aria-hidden="true"></div>
+      <section class="panel arcade-panel" id="arcade" aria-labelledby="arcadeHeading">
+        <div class="arcade-intro"><div id="arcadeArt" class="arcade-art" aria-hidden="true"></div><div><p class="eyebrow">A WELL-EARNED LITTLE BREAK</p><h2 id="arcadeHeading">Playtime Arcade</h2><p>Match six pairs in Memory Match. Your teacher can grant game passes; playing never awards stars.</p><p class="muted">Your unfinished round stays with you after signing out or changing devices.</p><div class="button-row"><span id="passes" class="pill">0 game passes</span><button id="startGame" class="pink" type="button">Use 1 pass · Memory Match</button></div></div></div>
+        <div id="game" class="game" hidden><h3>Memory Match</h3><p id="gameStatus" role="status" aria-live="polite"></p><div id="memory" class="memory" role="group" aria-label="Memory Match cards"></div></div>
       </section>
-    </div>
 
-    <section class="panel" id="shopSection" aria-labelledby="shopHeading">
-      <div class="section-heading"><div><p class="eyebrow">SOMETHING SPECIAL FOR YOUR BUDDY</p><h2 id="shopHeading">The Star Shop</h2></div><span class="handwritten" aria-hidden="true">small treats, big smiles ✧</span></div>
-      <p>Spend available stars on permanent accessories or a tasty treat. Your lifetime stars always stay with you.</p>
-      <div class="shop-grid" id="shop"></div>
+      <section class="panel achievements" id="achievements" aria-labelledby="achievementsHeading"><div class="section-heading"><div><p class="eyebrow">EVERY LITTLE EFFORT COUNTS</p><h2 id="achievementsHeading">Your creative milestones</h2></div></div><p>Collected with lifetime stars, so shopping never takes a milestone away.</p><div id="badges" class="badges"></div></section>
+      <p class="version" id="version"></p>
     </section>
 
-    <section class="panel arcade-panel" id="arcade" aria-labelledby="arcadeHeading">
-      <div class="arcade-intro"><div id="arcadeArt" class="arcade-art" aria-hidden="true"></div><div><p class="eyebrow">A WELL-EARNED LITTLE BREAK</p><h2 id="arcadeHeading">Playtime Arcade</h2><p>Match six pairs in Memory Match. Teacher demo controls grant passes; playing never awards stars.</p><p class="muted">Unfinished rounds stay with each fictional student, even after switching or reloading.</p><div class="button-row"><span id="passes" class="pill">0 game passes</span><button id="startGame" class="pink">Use 1 pass · Memory Match</button></div></div></div>
-      <div id="game" class="game" hidden><h3>Memory Match</h3><p id="gameStatus" role="status" aria-live="polite"></p><div id="memory" class="memory" role="group" aria-label="Memory Match cards"></div></div>
-    </section>
-
-    <section class="panel achievements" aria-labelledby="achievementsHeading"><div class="section-heading"><div><p class="eyebrow">EVERY LITTLE EFFORT COUNTS</p><h2 id="achievementsHeading">Your creative milestones</h2></div></div><p>Collected with lifetime stars, so shopping never takes a milestone away.</p><div id="badges" class="badges"></div></section>
-
-    <section class="panel feedback-panel" id="feedbackSection" aria-labelledby="feedbackHeading"><div><p class="eyebrow">MADE FOR ERIN'S FEEDBACK</p><h2 id="feedbackHeading">Help shape our next little step</h2><p>What feels right? What would you change for your class? Please use fictional examples only.</p><p class="muted">Copy your notes and send them however you prefer. Nothing is submitted or sent by this page.</p></div><div><label for="feedback">Your notes <span class="muted">(kept in this browser)</span></label><textarea id="feedback" rows="4" maxlength="6000" placeholder="I liked…&#10;It would help if…&#10;On my phone…"></textarea><div class="button-row"><button id="copyFeedback" class="lilac">Copy feedback + demo version</button><span class="version" id="version"></span></div><div id="copyFallback" hidden><label for="feedbackCopy">Select and copy this text</label><textarea id="feedbackCopy" rows="7" readonly></textarea></div><p id="feedbackStatus" role="status" aria-live="polite"></p></div></section>
-    <noscript><p class="demo-notice">Please enable JavaScript to try the pet demo. No accounts or cloud services are required.</p></noscript>
+    <noscript><p class="student-notice">Please enable JavaScript to sign in to My Art Pets.</p></noscript>
   </main>
-  <footer><img src="./assets/paw.svg" width="25" height="25" alt=""><p>My Art Pets · Cutie Edition<br><span>For Erin's Level 1 Art &amp; Design class · Bishop Burton College</span></p><p class="muted">Fictional demo · Browser-only progress · No real student records</p></footer>
+  <footer><img src="./assets/paw.svg" width="25" height="25" alt=""><p>My Art Pets · Cutie Edition<br><span>For Erin’s Level 1 Art &amp; Design class · Bishop Burton College</span></p><p class="muted">Private class profiles · No messaging · No public student directory</p></footer>
 </body>
 </html>

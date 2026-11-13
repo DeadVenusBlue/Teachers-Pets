@@ -1,0 +1,645 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function hasVerifiedEmail() {
+      return signedIn()
+        && request.auth.token.email is string
+        && request.auth.token.email_verified == true;
+    }
+
+    function isTeacher(classId) {
+      return signedIn()
+        && isActiveClass(classId)
+        && exists(/databases/$(database)/documents/staff/$(request.auth.uid))
+        && get(/databases/$(database)/documents/staff/$(request.auth.uid)).data.active == true
+        && get(/databases/$(database)/documents/staff/$(request.auth.uid)).data.classIds is list
+        && classId in get(/databases/$(database)/documents/staff/$(request.auth.uid)).data.classIds;
+    }
+
+    function isActiveClass(classId) {
+      return exists(/databases/$(database)/documents/classes/$(classId))
+        && get(/databases/$(database)/documents/classes/$(classId)).data.active == true;
+    }
+
+    function assignmentFor(uid) {
+      return get(/databases/$(database)/documents/assignments/$(uid)).data;
+    }
+
+    function ownsStudentPath(classId, studentId) {
+      return signedIn()
+        && exists(/databases/$(database)/documents/assignments/$(request.auth.uid))
+        && assignmentFor(request.auth.uid).classId == classId
+        && assignmentFor(request.auth.uid).studentId == studentId;
+    }
+
+    function isActiveStudent(classId, studentId) {
+      return ownsStudentPath(classId, studentId)
+        && isActiveClass(classId)
+        && assignmentFor(request.auth.uid).active == true
+        && get(/databases/$(database)/documents/classes/$(classId)/students/$(studentId)).data.userId == request.auth.uid
+        && get(/databases/$(database)/documents/classes/$(classId)/students/$(studentId)).data.status == 'joined';
+    }
+
+    function validStaff(data) {
+      return data.keys().hasAll(['active', 'displayName', 'email', 'classIds'])
+        && data.keys().hasOnly(['active', 'displayName', 'email', 'classIds'])
+        && data.active is bool
+        && data.displayName is string
+        && data.displayName.size() >= 1
+        && data.displayName.size() <= 60
+        && data.email is string
+        && data.email.size() >= 3
+        && data.email.size() <= 254
+        && data.classIds is list
+        && data.classIds.size() >= 1
+        && data.classIds.size() <= 10;
+    }
+
+    function validStudent(data) {
+      return data.keys().hasAll([
+          'displayName', 'invitedEmail', 'inviteId', 'userId', 'status',
+          'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'displayName', 'invitedEmail', 'inviteId', 'userId', 'status',
+          'createdAt', 'updatedAt'
+        ])
+        && data.displayName is string
+        && data.displayName.size() >= 1
+        && data.displayName.size() <= 60
+        && data.invitedEmail is string
+        && data.invitedEmail.size() >= 3
+        && data.invitedEmail.size() <= 254
+        && data.inviteId is string
+        && data.inviteId.size() >= 20
+        && data.inviteId.size() <= 120
+        && (data.userId == null || data.userId is string)
+        && data.status in ['invited', 'joined', 'removed']
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function validInvite(data) {
+      return data.keys().hasAll([
+          'studentId', 'email', 'status', 'createdAt', 'expiresAt',
+          'claimedBy', 'claimedAt'
+        ])
+        && data.keys().hasOnly([
+          'studentId', 'email', 'status', 'createdAt', 'expiresAt',
+          'claimedBy', 'claimedAt'
+        ])
+        && data.studentId is string
+        && data.studentId.size() >= 1
+        && data.studentId.size() <= 120
+        && data.email is string
+        && data.email.size() >= 3
+        && data.email.size() <= 254
+        && data.status in ['open', 'claimed', 'revoked']
+        && data.createdAt is timestamp
+        && data.expiresAt is timestamp
+        && (data.claimedBy == null || data.claimedBy is string)
+        && (data.claimedAt == null || data.claimedAt is timestamp);
+    }
+
+    function validAssignment(data) {
+      return data.keys().hasAll([
+          'classId', 'studentId', 'inviteId', 'email', 'active', 'joinedAt'
+        ])
+        && data.keys().hasOnly([
+          'classId', 'studentId', 'inviteId', 'email', 'active', 'joinedAt'
+        ])
+        && data.classId is string
+        && data.classId.size() >= 1
+        && data.classId.size() <= 120
+        && data.studentId is string
+        && data.studentId.size() >= 1
+        && data.studentId.size() <= 120
+        && data.inviteId is string
+        && data.inviteId.size() >= 20
+        && data.inviteId.size() <= 120
+        && data.email is string
+        && data.email.size() >= 3
+        && data.email.size() <= 254
+        && data.active == true
+        && data.joinedAt is timestamp;
+    }
+
+    function validInventory(inventory) {
+      return inventory is map
+        && inventory.keys().hasAll(['bow', 'glasses', 'crown', 'headphones'])
+        && inventory.keys().hasOnly(['bow', 'glasses', 'crown', 'headphones'])
+        && inventory.bow is bool
+        && inventory.glasses is bool
+        && inventory.crown is bool
+        && inventory.headphones is bool;
+    }
+
+    function validOpenCards(round) {
+      return (round.open.size() == 0 && round.resolveAt == null)
+        || (round.open.size() == 1
+          && round.open[0] is int
+          && round.open[0] >= 0
+          && round.open[0] <= 11
+          && round.cards[round.open[0]].matched == false
+          && round.resolveAt == null)
+        || (round.open.size() == 2
+          && round.open[0] is int
+          && round.open[1] is int
+          && round.open[0] >= 0
+          && round.open[0] <= 11
+          && round.open[1] >= 0
+          && round.open[1] <= 11
+          && round.open[0] != round.open[1]
+          && round.cards[round.open[0]].matched == false
+          && round.cards[round.open[1]].matched == false
+          && round.cards[round.open[0]].symbol
+            != round.cards[round.open[1]].symbol
+          && round.resolveAt is int
+          && round.resolveAt >= 0);
+    }
+
+    function validRound(round) {
+      return round == null
+        || (round is map
+          && round.keys().hasAll([
+            'id', 'cards', 'open', 'moves', 'resolveAt', 'finished'
+          ])
+          && round.keys().hasOnly([
+            'id', 'cards', 'open', 'moves', 'resolveAt', 'finished'
+          ])
+          && round.id is string
+          && round.id.size() >= 1
+          && round.id.size() <= 100
+          && round.cards is list
+          && round.cards.size() == 12
+          && round.open is list
+          && round.open.size() <= 2
+          && round.moves is int
+          && round.moves >= 0
+          && round.moves <= 1000000
+          && (round.resolveAt == null
+            || (round.resolveAt is int && round.resolveAt >= 0))
+          && round.finished is bool
+          && validOpenCards(round));
+    }
+
+    function validProgress(data) {
+      return data.keys().hasAll([
+          'schema', 'petName', 'petType', 'colour', 'balance', 'lifetime',
+          'happy', 'full', 'energy', 'inventory', 'wear', 'passes', 'round',
+          'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'schema', 'petName', 'petType', 'colour', 'balance', 'lifetime',
+          'happy', 'full', 'energy', 'inventory', 'wear', 'passes', 'round',
+          'updatedAt'
+        ])
+        && data.schema == 3
+        && data.petName is string
+        && data.petName.size() >= 1
+        && data.petName.size() <= 18
+        && data.petType is int
+        && data.petType >= 0
+        && data.petType <= 5
+        && data.colour is int
+        && data.colour >= 0
+        && data.colour <= 4
+        && data.balance is int
+        && data.balance >= 0
+        && data.balance <= 1000000
+        && data.lifetime is int
+        && data.lifetime >= data.balance
+        && data.lifetime <= 1000000
+        && data.happy is int
+        && data.happy >= 0
+        && data.happy <= 100
+        && data.full is int
+        && data.full >= 0
+        && data.full <= 100
+        && data.energy is int
+        && data.energy >= 0
+        && data.energy <= 100
+        && validInventory(data.inventory)
+        && data.wear in ['', 'bow', 'glasses', 'crown', 'headphones']
+        && (data.wear == ''
+          || (data.wear == 'bow' && data.inventory.bow == true)
+          || (data.wear == 'glasses' && data.inventory.glasses == true)
+          || (data.wear == 'crown' && data.inventory.crown == true)
+          || (data.wear == 'headphones' && data.inventory.headphones == true))
+        && data.passes is int
+        && data.passes >= 0
+        && data.passes <= 1000000
+        && validRound(data.round)
+        && data.updatedAt is timestamp;
+    }
+
+    function validFreshProgress(data) {
+      return validProgress(data)
+        && data.petName == 'Pebble'
+        && data.petType == 0
+        && data.colour == 0
+        && data.balance == 0
+        && data.lifetime == 0
+        && data.happy == 75
+        && data.full == 70
+        && data.energy == 80
+        && data.inventory == {
+          'bow': false,
+          'glasses': false,
+          'crown': false,
+          'headphones': false
+        }
+        && data.wear == ''
+        && data.passes == 0
+        && data.round == null
+        && data.updatedAt == request.time;
+    }
+
+    function changedOnly(fields) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(fields);
+    }
+
+    function cappedIncrease(before, after, amount) {
+      return (before + amount <= 100 && after == before + amount)
+        || (before + amount > 100 && after == 100);
+    }
+
+    function validCosmeticUpdate() {
+      return changedOnly(['petName', 'petType', 'colour', 'updatedAt'])
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasAny(['petName', 'petType', 'colour'])
+        && request.resource.data.updatedAt == request.time;
+    }
+
+    function validCareUpdate(stat, amount) {
+      return changedOnly([stat, 'updatedAt'])
+        && cappedIncrease(
+          resource.data[stat], request.resource.data[stat], amount
+        )
+        && request.resource.data.updatedAt == request.time;
+    }
+
+    function validWardrobeUpdate() {
+      return changedOnly(['wear', 'updatedAt'])
+        && request.resource.data.diff(resource.data).affectedKeys().hasAny(['wear'])
+        && request.resource.data.updatedAt == request.time;
+    }
+
+    function validAccessoryPurchase(itemId, price) {
+      return resource.data.balance >= price
+        && resource.data.inventory[itemId] == false
+        && request.resource.data.balance == resource.data.balance - price
+        && request.resource.data.inventory[itemId] == true
+        && request.resource.data.inventory.diff(resource.data.inventory)
+          .affectedKeys().hasOnly([itemId])
+        && request.resource.data.wear == itemId
+        && changedOnly(['balance', 'inventory', 'wear', 'updatedAt'])
+        && request.resource.data.updatedAt == request.time;
+    }
+
+    function validTreatPurchase() {
+      return resource.data.balance >= 5
+        && request.resource.data.balance == resource.data.balance - 5
+        && cappedIncrease(resource.data.happy, request.resource.data.happy, 20)
+        && cappedIncrease(resource.data.full, request.resource.data.full, 25)
+        && changedOnly(['balance', 'happy', 'full', 'updatedAt'])
+        && request.resource.data.updatedAt == request.time;
+    }
+
+    function validInitialRound(round) {
+      return round is map
+        && round.open.size() == 0
+        && round.moves == 0
+        && round.resolveAt == null
+        && round.finished == false;
+    }
+
+    function validGameStart() {
+      return resource.data.passes >= 1
+        && request.resource.data.passes == resource.data.passes - 1
+        && validInitialRound(request.resource.data.round)
+        && ((resource.data.round == null)
+          || (resource.data.round is map
+            && resource.data.round.finished == true
+            && request.resource.data.round.id != resource.data.round.id))
+        && changedOnly(['passes', 'round', 'updatedAt'])
+        && request.resource.data.updatedAt == request.time;
+    }
+
+    function validGameProgress() {
+      return resource.data.round is map
+        && request.resource.data.round is map
+        && request.resource.data.round.id == resource.data.round.id
+        && changedOnly(['round', 'updatedAt'])
+        && request.resource.data.updatedAt == request.time;
+    }
+
+    function validStudentProgressUpdate() {
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
+      return validProgress(request.resource.data)
+        && (changed.hasAny(['round', 'passes'])
+          ? (validGameStart() || validGameProgress())
+          : changed.hasAny(['balance', 'inventory'])
+            ? (validAccessoryPurchase('bow', 10)
+              || validAccessoryPurchase('glasses', 15)
+              || validAccessoryPurchase('crown', 25)
+              || validAccessoryPurchase('headphones', 20)
+              || validTreatPurchase())
+            : (validCosmeticUpdate()
+              || validCareUpdate('full', 20)
+              || validCareUpdate('happy', 15)
+              || validCareUpdate('energy', 25)
+              || validWardrobeUpdate()));
+    }
+
+    function validTeacherAward() {
+      let delta = request.resource.data.balance - resource.data.balance;
+      return changedOnly(['balance', 'lifetime', 'updatedAt'])
+        && (delta == 2 || delta == 3)
+        && request.resource.data.lifetime == resource.data.lifetime + delta
+        && request.resource.data.updatedAt == request.time;
+    }
+
+    function validTeacherPass() {
+      return changedOnly(['passes', 'updatedAt'])
+        && request.resource.data.passes == resource.data.passes + 1
+        && request.resource.data.updatedAt == request.time;
+    }
+
+    function validTeacherStudentCreate(classId, studentId) {
+      let data = request.resource.data;
+      let invite = getAfter(
+        /databases/$(database)/documents/classes/$(classId)/invites/$(data.inviteId)
+      ).data;
+      let progress = getAfter(
+        /databases/$(database)/documents/classes/$(classId)/students/$(studentId)/progress/current
+      ).data;
+      return isTeacher(classId)
+        && isActiveClass(classId)
+        && validStudent(data)
+        && data.userId == null
+        && data.status == 'invited'
+        && data.createdAt == request.time
+        && data.updatedAt == request.time
+        && validInvite(invite)
+        && invite.studentId == studentId
+        && invite.email == data.invitedEmail
+        && invite.status == 'open'
+        && invite.claimedBy == null
+        && invite.claimedAt == null
+        && validFreshProgress(progress);
+    }
+
+    function validTeacherInviteCreate(classId, inviteId) {
+      let data = request.resource.data;
+      let student = getAfter(
+        /databases/$(database)/documents/classes/$(classId)/students/$(data.studentId)
+      ).data;
+      let progress = getAfter(
+        /databases/$(database)/documents/classes/$(classId)/students/$(data.studentId)/progress/current
+      ).data;
+      return isTeacher(classId)
+        && isActiveClass(classId)
+        && validInvite(data)
+        && data.status == 'open'
+        && data.createdAt == request.time
+        && data.expiresAt > request.time
+        && data.claimedBy == null
+        && data.claimedAt == null
+        && validStudent(student)
+        && student.inviteId == inviteId
+        && student.invitedEmail == data.email
+        && student.status == 'invited'
+        && student.userId == null
+        && validFreshProgress(progress);
+    }
+
+    function validTeacherProgressCreate(classId, studentId) {
+      let student = getAfter(
+        /databases/$(database)/documents/classes/$(classId)/students/$(studentId)
+      ).data;
+      let invite = getAfter(
+        /databases/$(database)/documents/classes/$(classId)/invites/$(student.inviteId)
+      ).data;
+      return isTeacher(classId)
+        && isActiveClass(classId)
+        && validFreshProgress(request.resource.data)
+        && validStudent(student)
+        && student.status == 'invited'
+        && student.userId == null
+        && validInvite(invite)
+        && invite.studentId == studentId
+        && invite.email == student.invitedEmail
+        && invite.status == 'open';
+    }
+
+    function validAssignmentClaim(uid) {
+      let data = request.resource.data;
+      let invite = get(
+        /databases/$(database)/documents/classes/$(data.classId)/invites/$(data.inviteId)
+      ).data;
+      let student = get(
+        /databases/$(database)/documents/classes/$(data.classId)/students/$(data.studentId)
+      ).data;
+      let claimedInvite = getAfter(
+        /databases/$(database)/documents/classes/$(data.classId)/invites/$(data.inviteId)
+      ).data;
+      let joinedStudent = getAfter(
+        /databases/$(database)/documents/classes/$(data.classId)/students/$(data.studentId)
+      ).data;
+      return hasVerifiedEmail()
+        && uid == request.auth.uid
+        && isActiveClass(data.classId)
+        && !exists(/databases/$(database)/documents/staff/$(uid))
+        && validAssignment(data)
+        && data.email == request.auth.token.email
+        && data.joinedAt == request.time
+        && validInvite(invite)
+        && invite.status == 'open'
+        && invite.expiresAt > request.time
+        && invite.email == request.auth.token.email
+        && invite.studentId == data.studentId
+        && validStudent(student)
+        && student.status == 'invited'
+        && student.userId == null
+        && student.inviteId == data.inviteId
+        && student.invitedEmail == data.email
+        && validInvite(claimedInvite)
+        && claimedInvite.status == 'claimed'
+        && claimedInvite.claimedBy == uid
+        && claimedInvite.claimedAt == request.time
+        && validStudent(joinedStudent)
+        && joinedStudent.status == 'joined'
+        && joinedStudent.userId == uid;
+    }
+
+    function validStudentClaim(classId, studentId) {
+      let invite = get(
+        /databases/$(database)/documents/classes/$(classId)/invites/$(resource.data.inviteId)
+      ).data;
+      let assignment = getAfter(
+        /databases/$(database)/documents/assignments/$(request.auth.uid)
+      ).data;
+      let claimedInvite = getAfter(
+        /databases/$(database)/documents/classes/$(classId)/invites/$(resource.data.inviteId)
+      ).data;
+      return hasVerifiedEmail()
+        && validStudent(resource.data)
+        && resource.data.status == 'invited'
+        && resource.data.userId == null
+        && validStudent(request.resource.data)
+        && changedOnly(['userId', 'status', 'updatedAt'])
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.status == 'joined'
+        && request.resource.data.updatedAt == request.time
+        && validInvite(invite)
+        && invite.status == 'open'
+        && invite.expiresAt > request.time
+        && invite.email == request.auth.token.email
+        && invite.studentId == studentId
+        && validAssignment(assignment)
+        && assignment.classId == classId
+        && assignment.studentId == studentId
+        && assignment.inviteId == resource.data.inviteId
+        && assignment.email == request.auth.token.email
+        && assignment.active == true
+        && validInvite(claimedInvite)
+        && claimedInvite.status == 'claimed'
+        && claimedInvite.claimedBy == request.auth.uid
+        && claimedInvite.claimedAt == request.time;
+    }
+
+    function validInviteClaim(classId, inviteId) {
+      let student = get(
+        /databases/$(database)/documents/classes/$(classId)/students/$(resource.data.studentId)
+      ).data;
+      let joinedStudent = getAfter(
+        /databases/$(database)/documents/classes/$(classId)/students/$(resource.data.studentId)
+      ).data;
+      let assignment = getAfter(
+        /databases/$(database)/documents/assignments/$(request.auth.uid)
+      ).data;
+      return hasVerifiedEmail()
+        && validInvite(resource.data)
+        && resource.data.status == 'open'
+        && resource.data.expiresAt > request.time
+        && resource.data.email == request.auth.token.email
+        && validInvite(request.resource.data)
+        && changedOnly(['status', 'claimedBy', 'claimedAt'])
+        && request.resource.data.status == 'claimed'
+        && request.resource.data.claimedBy == request.auth.uid
+        && request.resource.data.claimedAt == request.time
+        && validStudent(student)
+        && student.status == 'invited'
+        && student.userId == null
+        && student.inviteId == inviteId
+        && validStudent(joinedStudent)
+        && joinedStudent.status == 'joined'
+        && joinedStudent.userId == request.auth.uid
+        && validAssignment(assignment)
+        && assignment.classId == classId
+        && assignment.studentId == resource.data.studentId
+        && assignment.inviteId == inviteId
+        && assignment.email == request.auth.token.email;
+    }
+
+    function validTeacherDisplayNameUpdate(classId) {
+      return isTeacher(classId)
+        && validStudent(request.resource.data)
+        && changedOnly(['displayName', 'updatedAt'])
+        && request.resource.data.diff(resource.data).affectedKeys().hasAny(['displayName'])
+        && request.resource.data.updatedAt == request.time;
+    }
+
+    function validTeacherRemoval(classId, studentId) {
+      let inviteAfter = getAfter(
+        /databases/$(database)/documents/classes/$(classId)/invites/$(resource.data.inviteId)
+      ).data;
+      return isTeacher(classId)
+        && validStudent(request.resource.data)
+        && resource.data.status in ['invited', 'joined']
+        && request.resource.data.status == 'removed'
+        && changedOnly(['status', 'updatedAt'])
+        && request.resource.data.updatedAt == request.time
+        && (resource.data.status == 'joined'
+          || (validInvite(inviteAfter) && inviteAfter.status == 'revoked'));
+    }
+
+    function validTeacherInviteRevocation(classId) {
+      let removedStudent = getAfter(
+        /databases/$(database)/documents/classes/$(classId)/students/$(resource.data.studentId)
+      ).data;
+      return isTeacher(classId)
+        && validInvite(request.resource.data)
+        && resource.data.status == 'open'
+        && request.resource.data.status == 'revoked'
+        && changedOnly(['status'])
+        && validStudent(removedStudent)
+        && removedStudent.status == 'removed';
+    }
+
+    match /staff/{uid} {
+      allow get: if signedIn() && request.auth.uid == uid;
+      allow list, create, update, delete: if false;
+    }
+
+    match /assignments/{uid} {
+      allow get: if signedIn() && request.auth.uid == uid;
+      allow list: if false;
+      allow create: if validAssignmentClaim(uid);
+      allow update, delete: if false;
+    }
+
+    match /classes/{classId} {
+      allow get: if isTeacher(classId)
+        || (signedIn()
+          && exists(/databases/$(database)/documents/assignments/$(request.auth.uid))
+          && assignmentFor(request.auth.uid).classId == classId);
+      allow list, create, update, delete: if false;
+
+      match /students/{studentId} {
+        allow get: if isTeacher(classId) || ownsStudentPath(classId, studentId);
+        allow list: if isTeacher(classId);
+        allow create: if validTeacherStudentCreate(classId, studentId);
+        allow update: if validStudentClaim(classId, studentId)
+          || validTeacherDisplayNameUpdate(classId)
+          || validTeacherRemoval(classId, studentId);
+        allow delete: if false;
+
+        match /progress/current {
+          allow get: if isTeacher(classId) || isActiveStudent(classId, studentId);
+          allow list: if false;
+          allow create: if validTeacherProgressCreate(classId, studentId);
+          // Choose one role path and validate the resulting record once. Avoid
+          // exhausting the expression budget by trying unrelated operations.
+          allow update: if isTeacher(classId)
+            ? (get(/databases/$(database)/documents/classes/$(classId)/students/$(studentId)).data.status == 'joined'
+              && validProgress(request.resource.data)
+              && (validTeacherAward() || validTeacherPass()))
+            : (isActiveStudent(classId, studentId) && validStudentProgressUpdate());
+          allow delete: if false;
+        }
+      }
+
+      match /invites/{inviteId} {
+        allow get: if isTeacher(classId)
+          || (hasVerifiedEmail()
+            && resource.data.email == request.auth.token.email);
+        allow list: if isTeacher(classId);
+        allow create: if validTeacherInviteCreate(classId, inviteId);
+        allow update: if validInviteClaim(classId, inviteId)
+          || validTeacherInviteRevocation(classId);
+        allow delete: if false;
+      }
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

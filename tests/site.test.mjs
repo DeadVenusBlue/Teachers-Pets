@@ -19,18 +19,21 @@ test('all six original pet drawings are preserved', async () => {
   }
 });
 
-test('Hosting contains only static public assets and uses the user-confirmed project', async () => {
+test('Hosting remains public-only while Firestore and local emulators are explicitly configured', async () => {
   const config = JSON.parse(await readFile(new URL('firebase.json', root), 'utf8'));
-  assert.deepEqual(Object.keys(config), ['hosting']); assert.equal(config.hosting.public, 'public');
+  assert.deepEqual(Object.keys(config), ['firestore', 'hosting', 'emulators']); assert.equal(config.hosting.public, 'public');
   assert.equal(config.hosting.site, undefined); assert.equal(config.hosting.target, undefined);
+  assert.equal(config.firestore.rules, 'firestore.rules');
+  assert.equal(config.emulators.auth.port, 9099); assert.equal(config.emulators.firestore.port, 8080);
   const project = JSON.parse(await readFile(new URL('.firebaserc', root), 'utf8'));
   assert.deepEqual(project, { projects: { default: 'erins-proj-788fe' } });
   assert.ok(config.hosting.headers[0].headers.some(header => header.key === 'X-Robots-Tag' && header.value.includes('noindex')));
   const files = await readdir(new URL('public/', root), { recursive: true });
   assert.ok(!files.some(file => /\.html$/.test(file) && file !== 'index.html'));
-  assert.ok(!files.some(file => /README|AGENTS|DEVELOPMENT|firebase|test|node_modules/.test(file)));
+  assert.ok(!files.some(file => /README|AGENTS|DEVELOPMENT|test|node_modules/.test(file)));
   const packageJson = JSON.parse(await readFile(new URL('package.json', root), 'utf8'));
   assert.equal(packageJson.version, VERSION); assert.equal(packageJson.dependencies, undefined);
+  assert.equal(packageJson.scripts.emulators.includes('demo-my-art-pets'), true);
 });
 
 test('page references resolve; noindex, form labels, focus and reduced motion rules exist', async () => {
@@ -46,4 +49,6 @@ test('page references resolve; noindex, form labels, focus and reduced motion ru
   }
   assert.match(css, /:focus-visible/); assert.match(css, /prefers-reduced-motion: reduce/);
   assert.match(css, /@media \(max-width: 650px\)/); assert.match(css, /min-height: 46px/);
+  assert.match(html, /id="loginForm"/); assert.match(html, /id="teacherView"/); assert.match(html, /id="studentView"/);
+  assert.doesNotMatch(html, /Fictional student|Teacher demo|browser-only progress/i);
 });
